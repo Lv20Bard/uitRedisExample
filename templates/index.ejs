@@ -74,6 +74,8 @@
           </div>
         </div>
       </div>
+   
+
     </div>
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -96,6 +98,7 @@
 
         socket.on('logged users', function(usernames) {
           $("#channels-list").html("");
+          console.log(usernames);
           for (i = 0; i < usernames.length; i++) {
             $("#channels-list").append("<p>"+usernames[i]+"</p>");
           }

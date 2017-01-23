@@ -30,8 +30,8 @@ app.get('/', function(req, res) {
 // redis functionality
 client.on('connect', function() {
 
-    // @TODO1: you should see this in your terminal window if you are connected to redis
     console.log('redis is connected!');
+    
 });
 
 // socket.io functionality
@@ -43,7 +43,17 @@ io.on('connection', function(socket){
   socket.on('disconnect', function() {
     
     console.log('the user '+socket.username+' disconnected...');
-    // @TODO4: you should be removing your usernames from the set here. Remember to emit the changes!
+    
+
+    client.srem("userlist", socket.username, function(err, reply){
+      client.smembers("userlist", function(err, reply){
+
+
+        socket.emit('logged users', reply );
+        socket.broadcast.emit('logged users', reply);
+      });
+    });
+
 
   });
 
@@ -52,25 +62,59 @@ io.on('connection', function(socket){
     var newmessage = "<strong>"+socket.username+":</strong> "+msg;
 
     // @TODO3: add your message to the list here! Remember to emit!
+    client.rpush("messages", newmessage, function(err, reply){
+        client.lrange("messages", 0, -1, function(err, messages){
+          socket.emit('show messages', messages);
+          socket.broadcast.emit('show messages', messages);
+        });
+    });
   });
 
   // listening for when you enter your name
   socket.on('enter name', function(name) {
 
   	socket.username = name;
-    socket.broadcast.emit('last logged', name);   // broadcast the last logged user
-    socket.emit('last logged', name);             // emit the last logged user
 
-    // @TODO2: save your username as a redis string here! Remember to emit the changes!
-    // @TODO4: save your list of usernames here! Remember to emit!
+
+    client.set("last-logged", ""+name, function(err, reply){
+      client.get('last-logged', function(err, reply){
+
+        socket.emit('last logged', reply);
+        socket.broadcast.emit('last logged', reply);
+    
+      });
+    });
+
+
+    client.sadd("userlist", name, function(err, reply){
+        client.smembers("userlist", function(err, users){
+          socket.emit('logged users', users);
+          socket.broadcast.emit('logged users', users);
+        }); 
+    });
+
   });
 
   // logged user functionality; this is triggered when the user opens the browser
 
-  // @TODO3: grab the messages list from redis and emit them here!
-  // @TODO1: show the last logged user via get()
-  // @TODO4: get the set of usernames from redis via smembers()
-  
+  client.lrange("messages", 0, -1, function(err, messages){
+    socket.emit('show messages', messages);
+    socket.broadcast.emit('show messages', messages);
+  });
+
+
+  client.get("last-logged", function(err, reply){
+    socket.emit('last logged', reply);
+    socket.broadcast.emit('last logged', reply);
+  });
+
+  client.smembers("userlist", function(err, users){
+    
+    socket.emit('logged users', users);
+    socket.broadcast.emit('logged users', users);
+  }); 
+
+
 });
 
 http.listen(8080);
